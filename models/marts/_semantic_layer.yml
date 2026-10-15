@@ -1,0 +1,117 @@
+# Governed metric definitions: every dashboard, notebook or AI agent asking "what was GMV" or
+# "what is the late-delivery rate" resolves to these definitions instead of re-deriving them from raw tables.
+version: 2
+
+semantic_models:
+  - name: orders
+    description: Order-level facts from fct_orders.
+    model: ref('fct_orders')
+    defaults:
+      agg_time_dimension: purchased_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_unique_id
+    dimensions:
+      - name: purchased_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: order_status
+        type: categorical
+      - name: customer_state
+        type: categorical
+      - name: primary_payment_type
+        type: categorical
+      - name: is_late
+        type: categorical
+    measures:
+      - name: order_count
+        agg: count
+        expr: order_id
+      - name: gmv
+        description: Items value plus freight (BRL).
+        agg: sum
+      - name: delivered_orders
+        agg: sum
+        expr: case when is_delivered then 1 else 0 end
+      - name: late_orders
+        agg: sum
+        expr: case when is_late then 1 else 0 end
+      - name: review_score_total
+        agg: sum
+        expr: review_score
+      - name: reviewed_orders
+        agg: count
+        expr: review_score
+      - name: buyers
+        agg: count_distinct
+        expr: customer_unique_id
+
+metrics:
+  - name: orders
+    label: Orders
+    type: simple
+    type_params:
+      measure: order_count
+
+  - name: gmv
+    label: GMV (BRL)
+    type: simple
+    type_params:
+      measure: gmv
+
+  - name: average_order_value
+    label: Average order value (BRL)
+    type: ratio
+    type_params:
+      numerator: gmv
+      denominator: orders
+
+  - name: late_delivery_rate
+    label: Late delivery rate
+    description: Share of delivered orders that arrived after the promised date.
+    type: ratio
+    type_params:
+      numerator: late_orders_metric
+      denominator: delivered_orders_metric
+
+  - name: late_orders_metric
+    label: Late orders
+    type: simple
+    type_params:
+      measure: late_orders
+
+  - name: delivered_orders_metric
+    label: Delivered orders
+    type: simple
+    type_params:
+      measure: delivered_orders
+
+  - name: average_review_score
+    label: Average review score
+    type: ratio
+    type_params:
+      numerator: review_score_total_metric
+      denominator: reviewed_orders_metric
+
+  - name: review_score_total_metric
+    label: Review score total
+    type: simple
+    type_params:
+      measure: review_score_total
+
+  - name: reviewed_orders_metric
+    label: Reviewed orders
+    type: simple
+    type_params:
+      measure: reviewed_orders
+
+  - name: buyers
+    label: Unique buyers
+    type: simple
+    type_params:
+      measure: buyers

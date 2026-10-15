@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      One row per order. Joins items, payments, reviews and customer to give order value (GMV = items + freight),
+      delivery timing versus the promised date, and the order's position in the customer's history.
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: customer_unique_id
+        data_tests: [not_null]
+      - name: gmv
+        description: Items value plus freight, in BRL.
+      - name: is_late
+        description: Delivered on a later calendar day than the estimated delivery date. Null if not delivered.
+      - name: customer_order_number
+        description: 1 for the customer's first order, 2 for the second, and so on.
+
+  - name: fct_order_items
+    columns:
+      - name: order_item_key
+        data_tests: [unique, not_null]
+
+  - name: dim_customers
+    description: One row per real customer (customer_unique_id), excluding canceled/unavailable orders.
+    columns:
+      - name: customer_unique_id
+        data_tests: [unique, not_null]
+
+  - name: mart_cohort_retention
+    description: Monthly acquisition cohorts and the share of each cohort ordering again N months later.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [cohort_month, months_since_first]
+
+  - name: mart_order_funnel
+    columns:
+      - name: purchase_month
+        data_tests: [unique, not_null]
+
+  - name: mart_delivery_performance
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [purchase_month, customer_state]
